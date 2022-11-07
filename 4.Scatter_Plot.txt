@@ -1,0 +1,278 @@
+### Part one: Define functions () ###############################
+
+
+# if (!requireNamespace("BiocManager"))
+#   install.packages("BiocManager")
+
+# BiocManager::install("DESeq")
+# BiocManager::install("DESeq2")
+# BiocManager::install("limma")
+# BiocManager::install("edgeR")
+
+## Library ##
+
+library("Cairo")
+library("limma")
+library("extrafont")
+library("RColorBrewer")
+library("edgeR")
+library("gplots")
+library("ggplot2")
+library("grid")
+library("VennDiagram")
+library("dplyr")
+
+
+CairoFonts(
+  regular="Arial:style=Regular",
+  bold="Arial:style=Bold",
+  italic="Arial:style=Italic",
+  bolditalic="Arial:style=Bold Italic,BoldItalic",
+  symbol="Symbol"
+)
+
+
+## Step 5. Scatter Plot method ##
+
+# Get list of the genes in Venn diagram
+AB_list <- read.table("Intersects_Venn_diagram_IRflox_Ins-IGF1_common_elements_A-VS-B.tsv",sep="\t",header=T,row.names=NULL) 
+AC_list <- read.table("Intersects_Venn_diagram_IRflox-IRKO_Ins_common_elements_A-VS-C.tsv",sep="\t",header=T,row.names=NULL)
+
+filter_na <- function(df, n) {
+   df[ ! is.na(df[n]), ][n]  
+}
+
+# flox_ins-IGF1
+ABA <- filter_na(AB_list, 3) 
+# dim(ABA) #233 # Ins
+ABB <- filter_na(AB_list, 2)
+# dim(ABB) #636 # IGF
+ABM <- filter_na(AB_list, 4) 
+# dim(ABM) #1064
+
+# Ins_flox-KO
+ACA <- filter_na(AC_list, 3) 
+# dim(ACA) #423 # Ins-flox
+ACC <- filter_na(AC_list, 2) 
+# dim(ACC) #434 # Ins-KO
+ACM <- filter_na(AC_list, 4) 
+# dim(ACM) #863
+
+
+colnames(ABA)[1] <- "genes"
+colnames(ABB)[1] <- "genes"
+colnames(ABM)[1] <- "genes"
+colnames(ACA)[1] <- "genes"
+colnames(ACC)[1] <- "genes"
+colnames(ACM)[1] <- "genes"
+
+
+flox_Ins<- read.table("edgeR_glmQLF_IRflox_Ins-Ctrl.tsv",sep="\t",header=T) 
+# dim(flox_Ins) # 15107, 6
+flox_IGF1 <- read.table("edgeR_glmQLF_IRflox_IGF1-Ctrl.tsv",sep="\t",header=T)
+# dim(flox_IGF1) # 15100, 6
+KO_Ins <- read.table("edgeR_glmQLF_IRKO_Ins-Ctrl.tsv",sep="\t",header=T) 
+# dim(KO_Ins) # 15160, 6
+
+names(flox_IGF1)[1] <- "genes" 
+names(flox_Ins)[1] <- "genes" 
+names(KO_Ins)[1] <- "genes" 
+
+A <- flox_Ins[,1:2]
+B <- flox_IGF1[,1:2] 
+C <- KO_Ins[,1:2] 
+
+
+
+## ======================================================
+## Set 1 AB : Flox: Ins - IGF1## 
+
+# ABA_Ins
+ABA_Ins <- merge(ABA, A, by="genes") # dim(ABA_Ins) # 233
+ABA_IGF1  <- merge(ABA, B, by="genes") # dim(ABA_IGF1) #221
+ABA <- merge(ABA_Ins, ABA_IGF1, by="genes", all=TRUE) # dim(ABA) #233
+ABA$genes <- gsub(".*_","",ABA$genes)
+ABA[is.na(ABA)] = 0
+# write.table(ABA, "merge_Set1_ABA_A_Ins.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+# ABB_IGF1
+ABB_IGF1 <- merge(ABB, B, by="genes")  # dim(ABB_IGF1) #636
+ABB_Ins  <- merge(ABB, A, by="genes") # dim(ABB_Ins) #633
+ABB <- merge(ABB_IGF1, ABB_Ins, by="genes", all=TRUE) # dim(ABB) #636
+ABB$genes <- gsub(".*_","",ABB$genes)
+ABB[is.na(ABB)] = 0
+# write.table(ABB, "merge_Set1_ABB_B_IGF1.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+# ABM_Ins-IGF1
+ABM_Ins  <- merge(ABM, A, by="genes") # dim(ABM_Ins) #1064
+ABM_IGF1 <- merge(ABM, B, by="genes") # dim(ABM_IGF1) #1064
+ABM<- merge(ABM_Ins, ABM_IGF1, by="genes",  all=TRUE) # dim(ABM) #1064
+ABM$genes <- gsub(".*_","",ABM$genes)
+ABM[is.na(ABM)] = 0
+# write.table(ABM, "merge_Set1_ABM_M_Ins_IGF1.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+
+## ====================================================================
+## Set2 AC : Ins: Flox - KO ##
+
+# ACA_flox_Ins
+ACA_flox <- merge(ACA,A, by="genes") # dim(ACA_flox) # 434
+ACA_KO  <- merge(ACA, C, by="genes") # dim(ACA_KO) #422
+ACA <- merge(ACA_flox, ACA_KO, by="genes", all=TRUE) # dim(ACA) #434
+ACA$genes <- gsub(".*_","",ACA$genes)
+ACA[is.na(ACA)] = 0
+# write.table(ACA, "merge_Set2_ACA_A_flox_Ins.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+# ACC_KO_Ins
+ACC_KO_Ins <- merge(ACC, C, by="genes")  # dim(ACC_KO_Ins) #423
+ACC_flox_Ins  <- merge(ACC, A, by="genes") # dim(ACC_flox_Ins) #405
+ACC <- merge(ACC_KO_Ins, ACC_flox_Ins, by="genes", all=TRUE) # dim(ACC) #423
+ACC$genes <- gsub(".*_","",ACC$genes)
+ACC[is.na(ACC)] = 0
+# write.table(ACC, "merge_Set2_ACC_C_KO_Ins.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+# ACM_Ins_flox-KO
+ACM_flox  <- merge(ACM, A, by="genes") # dim(ACM_flox) #863
+ACM_KO <- merge(ACM, C, by="genes") # dim(ACM_KO) #863
+ACM<- merge(ACM_flox, ACM_KO, by="genes",  all=TRUE) # dim(ACM) #863
+ACM$genes <- gsub(".*_","",ACM$genes)
+ACM[is.na(ACM)] = 0
+# write.table(ACM, "merge_Set2_ACM_M_Ins_flox_KO.tsv", quote=FALSE, sep="\t", col.names=NA)
+
+
+
+### Scatter Plot
+
+# Set1 AB_ flox_IGF1-vs-flox_Ins
+#
+png("AB.png",family = "Arial",  width=500 ,height=500)
+plot(x=ABM$logFC.x, y=ABM$logFC.y, col="gray", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	xlab="logFC (Flox: Ins/Ctrl)",
+	ylab="logFC (Flox: IGF1/Ctrl)",
+	main="Flox: Ins-vs-IGF1",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+points(x=ABA$logFC.x, y=ABA$logFC.y, col="blue", pch=16)
+points(x=ABB$logFC.y, y=ABB$logFC.x, col="red", pch=16)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+
+dev.off()
+
+#
+png("AB_mid.png",family = "Arial", width=500 ,height=500)
+plot(x=ABM$logFC.x, y=ABM$logFC.y, col="gray", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (Flox: IGF1/Ctrl)",
+	main="Flox: Ins-vs-IGF1",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+
+dev.off()
+
+#
+png("AB_A_Ins.png",family = "Arial",width=500 ,height=500)
+plot(x=ABA$logFC.x, y=ABA$logFC.y, col="blue", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (Flox: IGF1/Ctrl)",
+	main="Flox: Ins",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+dev.off()
+
+#
+png("AB_B_IGF1.png",family = "Arial",width=500 ,height=500)
+plot(x=ABB$logFC.y, y=ABB$logFC.x, col="red", pch=16,
+	xlim=c(-2,2), ylim=c(-2,2),
+	xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (Flox: IGF1/Ctrl)",
+	main="Flox: IGF1",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+dev.off()
+
+##=====
+
+# Set2 AC_ flox_Ins - KO_Ins
+
+#
+png("AC.png",family = "Arial",width=500 ,height=500)
+plot(x=ACM$logFC.x, y=ACM$logFC.y, col="gray", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	xlab="logFC (Flox: Ins/Ctrl)",
+	ylab="logFC (IRKO: Ins/Ctrl)",
+	main="Ins: Flox-vs-KO",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+points(x=ACA$logFC.x, y=ACA$logFC.y, col="darkgreen", pch=16)
+points(x=ACC$logFC.y, y=ACC$logFC.x, col="Blueviolet", pch=16)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+
+dev.off()
+
+#
+png("AC_mid.png",family = "Arial",width=500 ,height=500)
+plot(x=ACM$logFC.x, y=ACM$logFC.y, col="gray", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	 xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (IRKO: Ins/Ctrl)",
+	main="Ins: Flox-vs-KO",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+dev.off()
+
+#
+png("AC_A_Ins_flox.png",family = "Arial")
+plot(x=ACA$logFC.x, y=ACA$logFC.y, col="darkgreen", pch=16, 
+	xlim=c(-2,2), ylim=c(-2,2),
+	 xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (IRKO: Ins/Ctrl)",
+	main="Ins_flox",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+dev.off()
+
+#
+png("AC_D_Ins_KO.png",family = "Arial",width=500 ,height=500)
+plot(x=ACC$logFC.y, y=ACC$logFC.x, col="Blueviolet", pch=16,
+	xlim=c(-2,2), ylim=c(-2,2),
+  xlab="logFC (Flox: Ins/Ctrl)",
+  ylab="logFC (IRKO: Ins/Ctrl)",
+	main="Ins_IRKO",
+	cex.main=2, 
+	cex.lab=1.5, 
+	cex.axis=1.5
+	)
+abline(h=0, v=0, col="gray")
+abline(a = 0, b = 1, col = "green")
+dev.off()
+
+

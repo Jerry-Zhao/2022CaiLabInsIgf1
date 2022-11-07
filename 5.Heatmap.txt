@@ -1,0 +1,357 @@
+### Part one: Define functions () ###############################
+
+
+# if (!requireNamespace("BiocManager"))
+#   install.packages("BiocManager")
+
+# BiocManager::install("DESeq")
+# BiocManager::install("DESeq2")
+# BiocManager::install("limma")
+# BiocManager::install("edgeR")
+
+## Library ##
+
+
+library("Cairo")
+library("DESeq2")
+library("edgeR")
+library("gplots")
+library("ggplot2")
+library("mixOmics")
+library("RColorBrewer")
+library("stats")
+library("extrafont")
+library("pheatmap")
+
+
+
+CairoFonts(
+  regular="Arial:style=Regular",
+  bold="Arial:style=Bold",
+  italic="Arial:style=Italic",
+  bolditalic="Arial:style=Bold Italic,BoldItalic",
+  symbol="Symbol"
+)
+
+
+
+#################### Z score ######################## 
+
+## Call Data file: merge Zscore & FC 
+# IRflox_Ins-IGF1_common_FC.csv
+# IRflox_Ins-IGF1_Ins_sp_FC.csv
+# IRflox_Ins-IGF1_IGF1_sp_FC.csv
+# IRflox_KO_Ins_common_FC.csv
+# IRflox_KO_Ins_IRflox_Sp_FC.csv
+# IRflox_KO_Ins_IRKO_Sp_FC.csv
+
+
+A <-  read.table("IRflox_Ins-IGF1_common_FC.csv", sep=",", header=T, row.names=NULL)
+B <-  read.table("IRflox_Ins-IGF1_Ins_sp_FC.csv", sep=",", header=T, row.names=NULL)
+C <-  read.table("IRflox_Ins-IGF1_IGF1_sp_FC.csv", sep=",", header=T, row.names=NULL)
+D <-  read.table("IRflox_KO_Ins_common_FC.csv", sep=",", header=T, row.names=NULL)
+E <-  read.table("IRflox_KO_Ins_IRflox_Sp_FC.csv", sep=",", header=T, row.names=NULL)
+F <-  read.table("IRflox_KO_Ins_IRKO_Sp_FC.csv", sep=",", header=T, row.names=NULL)
+
+names(A)[1] <- "genes"
+names(B)[1] <- "genes"
+names(C)[1] <- "genes"
+names(D)[1] <- "genes"
+names(E)[1] <- "genes"
+names(F)[1] <- "genes"
+
+# dim(A) # 1064    3
+# dim(B) # 233   3
+# dim(C) # 636   3
+# dim(D) # 863   3
+# dim(E) # 434   3
+# dim(F) # 423   3
+
+
+## Call Zscore_File
+# ZCPM_IRflox_Ins-IGF1_Sohyun.csv
+# ZCPM_IRflox-KO_Ins_Sohyun.csv
+
+ZA1 <- read.table("ZCPM_IRflox_Ins-IGF1_Sohyun.csv", sep=",", header=T, row.names=NULL)
+ZB1 <- read.table("ZCPM_IRflox-KO_Ins_Sohyun.csv", sep=",", header=T, row.names=NULL)
+
+names(ZA1)[1] <- "genes" # dim(ZA1) # 15121    13
+names(ZB1)[1] <- "genes" # dim(ZB1) # 15121    17
+
+
+merge_Z_FC <- function(data1, data2, outfile) {
+	merged.data_z_FC <- merge(data1, data2, by="genes", all.x=TRUE, sort=FALSE) 
+	print(dim(data1))
+
+	write.table(merged.data_z_FC, file=outfile, quote=FALSE,sep=",",col.names=NA)
+}
+
+# merge_Z_FC(data1=A, data2=ZA1, outfile="merged_Z_DEG_IRflox_Ins-IGF1_common.csv")
+# merge_Z_FC(data1=B, data2=ZA1, outfile="merged_Z_DEG_IRflox_Ins-IGF1_Ins_Sp.csv")
+# merge_Z_FC(data1=C, data2=ZA1, outfile="merged_Z_DEG_IRflox_Ins-IGF1_IGF1_Sp.csv")
+# merge_Z_FC(data1=D, data2=ZB1, outfile="merged_Z_DEG_IRflox-KO_Ins_common.csv")
+# merge_Z_FC(data1=E, data2=ZB1, outfile="merged_Z_DEG_IRflox-KO_Ins_flox_Sp.csv")
+# merge_Z_FC(data1=F, data2=ZB1, outfile="merged_Z_DEG_IRflox-KO_Ins_KO_Sp.csv")
+
+
+### Data file for Heatmap -> Delete column for column1, FC, NA ###
+# "merged_Z_DEG_IRflox_Ins-IGF1_common.csv"
+# "merged_Z_DEG_IRflox_Ins-IGF1_Ins_Sp.csv"
+# "merged_Z_DEG_IRflox_Ins-IGF1_IGF1_Sp.csv"
+# "merged_Z_DEG_IRflox-KO_Ins_common.csv"
+# "merged_Z_DEG_IRflox-KO_Ins_flox_Sp.csv"
+# "merged_Z_DEG_IRflox-KO_Ins_KO_Sp.csv"
+
+
+heatmap  <- function(data1, outfile) {
+	data <- read.table(data1, sep=",", header=T, row.names=1)
+CairoSVG(outfile, width = 8, height = 12, unit = "px")
+  pheatmap(data, color = colorRampPalette(rev(brewer.pal(n =5, name ="RdYlBu")))(500),breaks = seq(-2,2,length.out = 500),cluster_cols = FALSE, cluster_rows=FALSE)
+dev.off()
+}
+
+heatmap(data1="merged_Z_DEG_IRflox_Ins-IGF1_common.csv", outfile="Heatmap_IRflox_Ins-IGF1_common.svg")
+heatmap(data1="merged_Z_DEG_IRflox_Ins-IGF1_Ins_Sp.csv", outfile="Heatmap_IRflox_Ins-IGF1_Ins_sp.svg")
+heatmap(data1="merged_Z_DEG_IRflox_Ins-IGF1_IGF1_Sp.csv", outfile="Heatmap_IRflox_Ins-IGF1_IGF1_Sp.svg")
+heatmap(data1="merged_Z_DEG_IRflox-KO_Ins_common.csv", outfile="Heatmap_IRflox-KO_Ins_common.svg")
+heatmap(data1="merged_Z_DEG_IRflox-KO_Ins_flox_Sp.csv", outfile="Heatmap_IRflox-KO_Ins_flox_Sp.svg")
+heatmap(data1="merged_Z_DEG_IRflox-KO_Ins_KO_Sp.csv", outfile="Heatmap_IRflox-KO_Ins_KO_Sp.svg")
+
+
+
+## Heatmap2 : Top40_logFC
+
+## Call data for Top40_logFC
+# Heatmap Sort and select from "merge_Set1 & merge_Set2 file"
+
+# IR_flox_Ins-IGF_IGF1_Sp_Venn_Heatmap_Top40.csv
+# IR_flox_Ins-IGF_Ins_Sp_Venn_Heatmap_Top40.csv
+# IR_flox_Ins-IGF_Common_Heatmap_Top40.csv
+
+# Ins_IRflox-KO_flox_Sp_Venn_Heatmap_Top40.csv
+# Ins_IRflox-KO_KO_Sp_Venn_Heatmap_Top40.csv
+
+
+heatmap2  <- function(data1, outfile) {
+  data <- read.table(data1, sep=",", header=T, row.names=1)
+CairoSVG(outfile, width = 4, height = 6, unit = "px")
+   pheatmap(data, color = colorRampPalette(rev(brewer.pal(n =5, name ="RdYlBu")))(10),breaks = seq(-1.5,1.5,length.out = 10),cluster_cols = FALSE, cluster_rows=FALSE)
+dev.off()
+}
+
+heatmap2(data1="IR_flox_Ins-IGF_IGF1_Sp_Venn_Heatmap_Top40.csv", outfile="Heatmap2_Top40_IR_flox_Ins-IGF_IGF1_Sp.svg")
+heatmap2(data1="IR_flox_Ins-IGF_Ins_Sp_Venn_Heatmap_Top40.csv", outfile="Heatmap2_Top40_IR_flox_Ins-IGF_Ins_Sp.svg")
+heatmap2(data1="Ins_IRflox-KO_flox_Sp_Venn_Heatmap_Top40.csv", outfile="Heatmap2_Top40_IR_flox-KO_Insulin_flox_Sp.svg")
+heatmap2(data1="Ins_IRflox-KO_KO_Sp_Venn_Heatmap_Top40.csv", outfile="Heatmap2_Top40_IR_flox-KO_Insulin_KO_Sp.svg")
+
+
+heatmap2  <- function(data1, outfile) {
+  data <- read.table(data1, sep=",", header=T, row.names=1)
+CairoSVG(outfile, width = 4, height = 6, unit = "px")
+   pheatmap(data, color = colorRampPalette(rev(brewer.pal(n =5, name ="RdYlBu")))(21),breaks = seq(-2,2,length.out = 21),cluster_cols = FALSE, cluster_rows=FALSE)
+dev.off()
+}
+
+heatmap2(data1="IR_flox_Ins-IGF_Common_Heatmap_Top40.csv", outfile="Heatmap2_Top40_IR_flox_Ins-IGF_Common.svg")
+
+
+
+## Heatmap 3_ Specific_Pthways
+
+# Cutoff:  FDR < 0.05 
+# edgeR_DEG_FDR_cutoff_IRflox_IGF1-Ctrl.tsv
+# edgeR_DEG_FDR_cutoff_IRflox_Ins-Ctrl.tsv
+
+
+A <- read.table("edgeR_DEG_FDR_cutoff_IRflox_Ins-Ctrl.tsv", sep="\t", header=T, row.names=NULL)
+B <- read.table("edgeR_DEG_FDR_cutoff_IRflox_IGF1-Ctrl.tsv", sep="\t", header=T, row.names=NULL)
+
+names(A)[1] <- "genes" # IRflox: Ins/Ctrl
+names(B)[1] <- "genes" # IRflox: IGF1/Ctrl
+
+# dim(A)  # [1] 6901    6
+# dim(B)  # [1] 7757    6
+
+# head(A)
+# head(B)
+
+A1 <- data.frame(genes=A$genes, logFC=A$logFC)
+B1 <- data.frame(genes=B$genes, logFC=B$logFC)
+
+# dim(A1) # 6901    6
+# dim(B1) # 7757    6
+
+A2 <- subset(A1)
+B2 <- subset(B1)
+
+
+## Merge logFCs 
+
+merged.data_AB <- merge(A2, B2, by="genes", all=TRUE) #'Ins', 'IGF1'
+
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+
+# head(merged.data_AB)
+# dim(merged.data_AB)  # 8528    3
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+# write.table(merged.data_AB,file="Merged_FDR_cutoff_FC_venn_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+
+
+####  Merge with Pathway list genes with FC  
+
+# Pathway_gene_Heatshock.csv
+# Pathway_gene_Mrpl.csv
+# Pathway_gene_Rpl.csv
+# Pathway_gene_Autophagy_Weikang_provide.csv
+# Pathway_KEGG_Autophagy_animal_139.csv
+
+
+A <- read.table("Merged_FDR_cutoff_FC_IRflox_Ins-IGF1_Sohyun.csv", sep=",", header=T, row.names=NULL)
+B <- read.table("Merged_FC_cutoff_FC_IRflox_Ins-IGF1_Sohyun.csv", sep=",", header=T, row.names=NULL)
+P1 <- read.table("Pathway_gene_Heatshock.csv", sep=",", header=T, row.names=NULL)
+P2 <- read.table("Pathway_gene_Autophagy.csv", sep=",", header=T, row.names=NULL)
+P3 <- read.table("Pathway_gene_Mrpl.csv", sep=",", header=T, row.names=NULL)
+P4 <- read.table("Pathway_gene_Rpl.csv", sep=",", header=T, row.names=NULL)
+P5 <- read.table("Pathway_KEGG_Autophagy_animal_139.csv", sep=",", header=T, row.names=NULL)
+
+
+names(A)[1] <- "genes"
+names(B)[1] <- "genes"
+
+names(P1)[1] <- "genes" 
+names(P2)[1] <- "genes" 
+names(P3)[1] <- "genes" 
+names(P4)[1] <- "genes" 
+names(P5)[1] <- "genes" 
+
+
+dim(A)  # [1] 8528 3
+dim(B)  # [1] 1933    3
+dim(P1) # 15  1
+dim(P2) # 17 1
+dim(P3) # 40  1
+dim(P4) # 49  1
+dim(P5) # 139   1
+
+
+A1 <- data.frame(genes=A$genes, logFC=A[,c(2:3)])
+B1 <- data.frame(genes=B$genes, logFC=B[,c(2:3)])
+
+A2 <- subset(A1)
+B2 <- subset(B1)
+
+
+# Merge logFCs 
+
+# 1. Heatshock
+merged.data_AB <- merge(A2, P1, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Heatshock_FDR_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+
+# 2-1.  Autophagy (FDR)
+merged.data_AB <- merge(A2, P2, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Autophagy_FDR_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+# 2-2.  Autophagy2 (FDR)
+merged.data_AB <- merge(A2, P5, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Autophagy2_FDR_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+# 2-3.  Autophagy2 (FC)
+merged.data_AB <- merge(B2, P2, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Autophagy_FC_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+
+# 2-4.  Autophagy2 (FC)
+merged.data_AB <- merge(B2, P5, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Autophagy2_FC_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+# 3. Mrpl 
+merged.data_AB <- merge(A2, P3, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Mrpl_FDR_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+# 4. Rpl 
+merged.data_AB <- merge(A2, P4, by="genes") #'Ins', 'IGF1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "Insulin_IRflox"
+names(merged.data_AB)[3] <- "IGF1_IRflox"
+# head(merged.data_AB)
+# dim(merged.data_AB)  # 49  3
+# merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_Rpl_FDR_IRflox_Ins-IGF1_Sohyun.csv",quote=FALSE,sep=",",col.names=NA)
+# Remove list of genes for "0" 
+
+
+## Data file <- delete "0" value
+# Merged_Heatshock_FDR_IRflox_Ins-IGF1_Sohyun2.csv
+# Merged_Autophagy2_FDR_IRflox_Ins-IGF1_Sohyun2.csv
+# Merged_Mrpl_FDR_IRflox_Ins-IGF1_Sohyun2.csv
+# Merged_Rpl_FDR_IRflox_Ins-IGF1_Sohyun2.csv
+# Merged_Autophagy_FC_IRflox_Ins-IGF1_Sohyun2.csv
+
+
+
+heatmap3  <- function(data1, outfile) {
+  data <- read.table(data1, sep=",", header=T, row.names=1)
+CairoSVG(outfile, width = 6, height = 10, unit = "px")
+   pheatmap(data, color = colorRampPalette(rev(brewer.pal(n =5, name ="RdYlBu")))(11),breaks = seq(-1,1,length.out = 11),cluster_cols = FALSE, cluster_rows=FALSE)
+dev.off()
+}
+
+heatmap3(data1="Merged_Heatshock_FDR_IRflox_Ins-IGF1_Sohyun2.csv", outfile="Heatmap3_Pathway_Heatshock_FDR.svg")
+heatmap3(data1="Merged_Autophagy2_FDR_IRflox_Ins-IGF1_Sohyun2.csv", outfile="Heatmap3_Pathway_Autophagy_FDR.svg")
+heatmap3(data1="Merged_Mrpl_FDR_IRflox_Ins-IGF1_Sohyun2.csv", outfile="Heatmap3_Pathway_Mrpl_FDR.svg")
+heatmap3(data1="Merged_Rpl_FDR_IRflox_Ins-IGF1_Sohyun2.csv", outfile="Heatmap3_Pathway_Rpl_FDR.svg")
+heatmap3(data1="Merged_Autophagy_FC_IRflox_Ins-IGF1_Sohyun2.csv", outfile="Heatmap3_Pathway_Autophagy_FC.svg")
+
+
+
+
+
+
+
+
+

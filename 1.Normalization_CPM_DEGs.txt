@@ -1,0 +1,108 @@
+### Part one: Define functions () ###############################
+
+
+# if (!requireNamespace("BiocManager"))
+#   install.packages("BiocManager")
+
+# BiocManager::install("DESeq")
+# BiocManager::install("DESeq2")
+# BiocManager::install("limma")
+# BiocManager::install("edgeR")
+
+## Library ##
+
+library("DESeq2")
+library("edgeR")
+
+
+
+## Functions #############################
+# matrix of data
+##### Define data normalization method##############
+
+
+## Data Set ##
+
+# Data 
+data_all <- read.table("Merged_CaiLab_Astro_DIV14_IRflox_IRKO_exonic_gene_Jerry.xls", sep="\t", header=T, row.names=1)
+data1 <- data_all[,1:8] # IRflox_Ctrl # IRflox_Insulin
+data2 <- data_all[,c(1,2,3,4,9,10,11,12)] # IRflox_Ctrl # IRflox_IGF-1
+data3 <- data_all[,13:20] # IRKO # IRKO_Insulin
+
+# Group name
+group1 <- rep(c("IRflox_Ctrl","IRflox_Ins"), each=4)
+group2 <- rep(c("IRflox_Ctrl","IRflox_IGF1"),each=4)
+group3 <- rep(c("IRKO_Ctrl","IRKO_Ins"), each=4)
+
+# Raw Name
+row1 <- colnames(data1)
+row2 <- colnames(data2)
+row3 <- colnames(data3)
+
+# Label
+Label1 <- c("IRflox_Ctrl","IRflox_Ins")
+Label2 <- c("IRflox_Ctrl","IRflox_IGF1")
+Label3 <- c("IRKO_Ctrl","IRKO_Ins")
+
+
+
+## CPM ## 
+data_all <- read.table("Merged_CaiLab_Astro_DIV14_IRflox_IRKO_exonic_gene_Jerry.xls", sep="\t", header=T, row.names=1)
+group_all=rep(c("IRflox_Ctrl","IRflox_Ins","IRflox_IGF1","IRKO_Ctrl","IRKO_Ins","IRKO_IGF1"), each=4)
+data_y<-DGEList(counts=data_all, group=group_all) 
+
+# 2. Minimize / Normalize the sample : Valid data only.
+keep <- (rowSums(cpm(data_y)))/ncol(data_all) >= 0.5
+
+y <- data_y[keep,]
+dim(y) # 15121  24
+
+y$samples$lib.size <- colSums(y$counts)
+y <- calcNormFactors(y)
+y$samples
+
+data_r <- round(cpm(y),3) 
+dim(data_r) # 15121    24
+write.table(data_r,"edgeR_CPM_IRflox_IRko_all_Sohyun.tsv", sep="\t", col.names = NA, quote=FALSE)
+
+
+## Step 1. Normalization & DEGs method ##
+
+RPM_FC <- function(data, group, outfile1, outfile2, outfile3) {
+	data_DGE <- DGEList(counts=data, group=group)
+	keep <- (rowSums(cpm(data_DGE)))/ncol(data) >= 0.5
+
+	y <- data_DGE[keep,]
+	y$samples$lib.size <- colSums(y$counts)
+	data_Norm <- calcNormFactors(y)
+	design <- model.matrix(~group)
+	y_est <- estimateDisp(data_Norm, design)
+	fit <- glmQLFit(y_est, design)
+	test_result <- glmQLFTest(fit, coef=2)
+	total <- data.frame(topTags(test_result, n=length(y_est$AveLogCPM)))
+	write.table(total, outfile1, quote=FALSE, sep="\t", col.names=NA) # ------ logFC, FDR 
+
+	cutoff_FDR <- total[total$FDR<0.05,]									# ----- DEGs: FDR cutoff
+	write.table(cutoff_FDR, outfile2, quote=FALSE, sep="\t", col.names=NA)
+
+	cutoff_FC <- total[total$FDR<0.05 & abs(total$logFC) >log (1.5,2),]	 # ----- DEGs: FDR and FC cutoff
+	write.table(cutoff_FC, outfile3, quote=FALSE, sep="\t", col.names=NA)
+	print(dim(total[total$FDR < 0.05 & abs(total$logFC) > log(1.5,2),]))
+	print(dim(total[total$FDR < 0.05 & total$logFC > log(1.5,2),]))
+	print(dim(total[total$FDR < 0.05 & total$logFC < c(-log(1.5,2)),]))
+
+}
+
+# Insulin/IRflox
+RPM_FC(data=data1, group=group1, outfile1="edgeR_glmQLF_IRflox_Ins-Ctrl.tsv", outfile2="edgeR_DEG_FDR_cutoff_IRflox_Ins-Ctrl.tsv", outfile3="edgeR_DEG_FC_cutoff_IRflox_Ins-Ctrl.tsv") 
+# IRflox_Insulin/IRflox_Control :  1297 (up 585 / down 712)
+
+# IGF-1/IRflox
+RPM_FC(data=data2, group=group2, outfile1="edgeR_glmQLF_IRflox_IGF1-Ctrl.tsv", outfile2="edgeR_DEG_FDR_cutoff_IRflox_IGF1-Ctrl.tsv", outfile3="edgeR_DEG_FC_cutoff_IRflox_IGF1-Ctrl.tsv" )
+# IRflox_IGF-1/IRflox_Ctrl  :  1700 (up 804 / down 896)
+
+# Insulin_IRKO/Control_IRKO
+RPM_FC(data=data3, group=group3, outfile1="edgeR_glmQLF_IRKO_Ins-Ctrl.tsv", outfile2="edgeR_DEG_FDR_cutoff_IRKO_Ins-Ctrl.tsv", outfile3="edgeR_DEG_FC_cutoff_IRKO_Ins-Ctrl.tsv")
+# IRKO_Insulin/IRKO_Ctrl :  1286 (up 620 / down 666)
+
+

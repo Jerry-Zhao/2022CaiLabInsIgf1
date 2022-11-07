@@ -1,0 +1,132 @@
+### Part one: Define functions () ###############################
+
+
+# if (!requireNamespace("BiocManager"))
+#   install.packages("BiocManager")
+
+# BiocManager::install("DESeq")
+# BiocManager::install("DESeq2")
+# BiocManager::install("limma")
+# BiocManager::install("edgeR")
+
+## Library ##
+
+library("Cairo")
+library("ggplot2")
+library("grid")
+library("VennDiagram")
+library("dplyr")
+library("limma")
+
+
+CairoFonts(
+  regular="Arial:style=Regular",
+  bold="Arial:style=Bold",
+  italic="Arial:style=Italic",
+  bolditalic="Arial:style=Bold Italic,BoldItalic",
+  symbol="Symbol"
+)
+
+
+## Step 4. Venn diagram method ##
+ 
+# Call DEGs file (FDR and FC cutoff)
+A <- read.table("edgeR_DEG_FC_cutoff_IRflox_Ins-Ctrl.tsv",sep="\t",header=T,row.names=NULL)
+B <- read.table("edgeR_DEG_FC_cutoff_IRflox_IGF1-Ctrl.tsv",sep="\t",header=T,row.names=NULL) 
+C <- read.table("edgeR_DEG_FC_cutoff_IRKO_Ins-Ctrl.tsv",sep="\t",header=T,row.names=NULL) 
+
+names(A)[1] <- "genes"
+names(B)[1] <- "genes"
+names(C)[1] <- "genes"
+
+# dim(A)  # 1297, 6
+# dim(B)  # 1700, 6
+# dim(C)  # 1286, 6
+
+A1 <- data.frame(genes=A$genes, logFC=A$logFC)
+B1 <- data.frame(genes=B$genes, logFC=B$logFC)
+C1 <- data.frame(genes=C$genes, logFC=C$logFC)
+
+A2 <- subset(A1)
+B2 <- subset(B1)
+C2 <- subset(C1)
+
+
+# Vendiagram 1. Insulin/IRflox and IGF-1/IRflox
+merged.data_AB <- merge(A2, B2, by="genes", all=TRUE) #'Insuslin', 'IGF-1'
+names(merged.data_AB)[1] <- "genes"
+names(merged.data_AB)[2] <- "IRflox:Ins/Ctrl"
+names(merged.data_AB)[3] <- "IRflox:IGF1/Ctrl"
+
+# head(merged.data_AB)
+# dim(merged.data_AB)  # [1]  
+
+merged.data_AB[is.na(merged.data_AB)] <- 0
+write.table(merged.data_AB,file="Merged_venn_IRflox_Ins-IGF1_Sohyun.tsv",quote=FALSE,sep="\t",col.names=NA)
+
+pdf("venn_diagram_up-down_count_IRflox_Ins-IGF1.pdf")
+vennDiagram(merged.data_AB[2:3], height = 3000, width = 3000, resolution = 300, units = 'px',cex=1)
+vennDiagram(merged.data_AB[2:3], include=c("up","down"), counts.col=c("red","blue"), circle.col=c("pink", "light blue"), height = 3000, width = 3000, resolution = 300, units = 'px', lty = rep("blank", 2),cex=1, cat.fontface=4)
+dev.off()
+
+
+## List of the genes in common elements
+require(nVennR)
+    require(dplyr)
+       # wrangle input
+       library("nVennR")
+       library("data.table")
+
+Venn <- plotVenn(list(A2,B2), outFile = "IRflox_Ins-IGF1_DataSourceVenn_A-B.pdf") 
+      # produces associated diagram
+      # generate lists of each intersect
+intersects <- listVennRegions(Venn)
+      # pull lists together
+intersects <- plyr::ldply(intersects, cbind)
+      # insert own appropriate col name for V1
+colnames(intersects)<-c('Intersect','V1')
+      # transpose data into columns for each intersect
+intersects <- dcast(setDT(intersects), rowid(Intersect) ~ Intersect, value.var = "V1")[,Intersect:= NULL]
+
+write.table(intersects, file="Intersects_Venn_diagram_IRflox_Ins-IGF1_common_elements_A-VS-B.tsv",quote=FALSE,sep="\t")
+
+
+# Vendiagram 2. Insulin/IRflox and Insulin/IRKO
+merged.data_AC <- merge(A2, C2, by="genes", all=TRUE) #'IRflox: Ins/Ctrl', 'IRKO: Ins/Ctrl'
+names(merged.data_AC)[1] <- "genes"
+names(merged.data_AC)[2] <- "IRflox:Ins/Ctrl"
+names(merged.data_AC)[3] <- "IRKO:Ins/Ctrl"
+
+# head(merged.data_AC)
+# dim(merged.data_AC)  # [1]  1720    3
+
+merged.data_AC[is.na(merged.data_AC)] <- 0
+write.table(merged.data_AC,file="Merged_FC_venn_IRflox-IRKO_Ins_Sohyun.tsv",quote=FALSE,sep="\t",col.names=NA)
+
+pdf("venn_diagram_up-down_count_IRflox-KO_Ins.pdf")
+vennDiagram(merged.data_AC[2:3], height = 3000, width = 3000, resolution = 300, units = 'px',cex=1)
+vennDiagram(merged.data_AC[2:3], include=c("up","down"), counts.col=c("red","blue"), circle.col=c("pink", "light blue"), height = 3000, width = 3000, resolution = 300, units = 'px', lty = rep("blank", 2),cex=1, cat.fontface=4)
+dev.off()
+
+
+## List of the genes in common elements
+require(nVennR)
+    require(dplyr)
+       # wrangle input
+       library("nVennR")
+       library("data.table")
+
+Venn <- plotVenn(list(A2,C2), outFile = "IRflox-IRKO_Ins_DataSourceVenn_A-C.pdf")
+      # produces associated diagram
+      # generate lists of each intersect
+intersects <- listVennRegions(Venn)
+      # pull lists together
+intersects <- plyr::ldply(intersects, cbind)
+      # insert own appropriate col name for V1
+colnames(intersects)<-c('Intersect','V1')
+      # transpose data into columns for each intersect
+intersects <- dcast(setDT(intersects), rowid(Intersect) ~ Intersect, value.var = "V1")[,Intersect:= NULL]
+
+write.table(intersects, file="Intersects_Venn_diagram_IRflox-IRKO_Ins_common_elements_A-VS-C.tsv",quote=FALSE,sep="\t")
+
+

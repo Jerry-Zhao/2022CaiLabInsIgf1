@@ -1,0 +1,119 @@
+### Part one: Define functions () ###############################
+
+
+# if (!requireNamespace("BiocManager"))
+#   install.packages("BiocManager")
+
+# BiocManager::install("DESeq")
+# BiocManager::install("DESeq2")
+# BiocManager::install("limma")
+# BiocManager::install("edgeR")
+
+## Library ##
+
+
+library("Cairo")
+library("ggplot2")
+
+
+CairoFonts(
+  regular="Arial:style=Regular",
+  bold="Arial:style=Bold",
+  italic="Arial:style=Italic",
+  bolditalic="Arial:style=Bold Italic,BoldItalic",
+  symbol="Symbol"
+)
+
+
+### Pathway _ GO_REAC_KEGG
+
+# Floor to the order of magnitude.
+log10_floor <- function(x) {
+  10^(floor(log10(x)))
+}
+
+
+scooch_out <- function(x) {
+  if (x == 0) return(0)
+  lbound <- log10_floor(x)
+  floor((x + lbound) / lbound) * lbound
+}
+
+
+
+make_graph <- function(csv_filename, svg_filename, plot_title, plot_cb = NULL) {
+  print(csv_filename)
+
+  GO <- read.csv(csv_filename, sep = ",", header = TRUE, row.names = NULL)
+
+#    GO$term_name <- gsub("(.*); (motif.*)","\\1\n[\\2]", GO$term_name)
+
+  if (any(grepl("; motif", GO$term_name))) {
+    GO$term_name <- gsub("(.*); (motif.*)","\\1\n[\\2]", GO$term_name)
+  } else if (any(grepl("REAC", csv_filename))) {
+    GO$term_name <- lapply(strwrap(GO$term_name, width = 35, simplify = FALSE), paste, collapse="\n")
+  }
+    else if (any(grepl("process", GO$term_name))) {
+    GO$term_name <- gsub(".process.*","", GO$term_name)
+  }
+
+  # Sort data by adjusted_p_value low-to-high and list the term_name.
+  GO_top20 <- head(GO[order(GO$adjusted_p_value),], n=20)
+  GO_top20$term_name <- factor(
+    GO_top20$term_name,
+    levels=GO_top20$term_name[rev(order(GO_top20$adjusted_p_value))]
+  )
+
+  # Add a little more on the right-side so we see the label for the
+  # max p value.
+  x_scooch <- scooch_out(max(GO_top20$adjusted_p_value))
+
+  size_breaks <- scales::breaks_extended()(GO_top20$intersection_size)
+  # size_breaks[1] <- log10_floor(min(GO_top20$intersection_size))
+  # size_breaks[length(size_breaks)] <- scooch_out(max(GO_top20$intersection_size))
+  size_breaks[1] <- floor(min(GO_top20$intersection_size))
+  size_breaks[length(size_breaks)] <- ceiling(max(GO_top20$intersection_size))
+
+  CairoSVG(svg_filename, width = 6, height = 8, unit = "px")
+
+    ggplot(GO_top20, aes(x = adjusted_p_value, y = term_name,
+                         size = intersection_size, color = Gene_ratio)) + 
+    geom_point() +
+    scale_color_gradient(low = "red", high = "blue") +
+    theme_bw() + 
+    scale_size(
+      limits = c(size_breaks[1], size_breaks[length(size_breaks)]),
+      breaks = size_breaks,
+    ) +
+    scale_x_continuous(
+      limits = c(-0, x_scooch)
+    ) +
+    ylab(NULL) + # hide y-axis label
+    xlab("Adjusted_p_value") +
+    labs(
+      title = plot_title,
+      x = "Adjusted_p_value",
+      color="Gene_ratio"
+    ) +
+    theme(
+      axis.text.y = element_text(size = 0, color = "black"),
+      legend.title = element_text(size = 7.5, color = "black")
+    )+
+    guides(
+      size = guide_legend(order = 1)
+      )
+}
+
+
+
+make_graph("Set1_inter_GO_BP.csv", "Flox_Ins-VS-IGF1_GO_BP_Inter.svg", "GO_BP_enrichment analysis") 
+make_graph("Set1_IGF1_GO_BP.csv", "Flox_Ins-VS-IGF1_GO_BP_IGF1_only.svg", "GO_BP_enrichment analysis")
+make_graph("Set1_Ins_GO_BP.csv", "Flox_Ins-VS-IGF1_GO_BP_Ins_only.svg", "GO_BP_enrichment analysis")
+make_graph("Set1_inter_GO_KEGG.csv", "Flox_Ins-VS-IGF1_GO_KEGG_Inter.svg", "GO_KEGG_enrichment analysis")
+make_graph("Set1_inter_GO_REAC.csv", "Flox_Ins-VS-IGF1_GO_REAC_Inter.svg", "GO_REAC_enrichment analysis")
+make_graph("Set2_ins_flox_GO_all.csv", "Ins-IRFlox-vs-IRKO_GO_IRflox_only.svg", "GO_enrichment analysis")
+make_graph("Set2_inter_GO_BP.csv", "Ins-IRFlox-vs-IRKO_GO_BP_Inter.svg", "GO_BP_enrichment analysis")
+make_graph("Set2_inter_GO_REAC.csv", "Ins-IRFlox-vs-IRKO_GO_REAC_Inter.svg", "GO_REAC_enrichment analysis")
+make_graph("Set2_inter_GO_KEGG.csv", "Ins-IRFlox-vs-IRKO_GO_KEGG_Inter.svg", "GO_KEGG_enrichment analysis")
+make_graph("Set2_ins_KO_KEGG.csv", "Ins-IRFlox-vs-IRKO_GO_KEGG_IRKO_only.svg", "GO_KEGG_enrichment analysis")
+
